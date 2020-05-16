@@ -33,9 +33,7 @@
       <div class="panel-block">
         <div class="columns">
           <div class="column">
-            <b-checkbox v-model="attributes.Irigb" @input="gotInput('Irigb', $event)">
-              Irigb
-            </b-checkbox>
+            <b-checkbox v-model="attributes.IrigB" @input="gotInput('IrigB', $event)">Irigb</b-checkbox>
           </div>
         </div>
       </div>
@@ -71,9 +69,10 @@
       <div class="panel-block">
         <div class="columns">
           <div class="column">
-            <b-checkbox v-model="attributes.HumiditySensor" @input="gotInput('HumiditySensor', $event)">
-              HumiditySensor
-            </b-checkbox>
+            <b-checkbox
+              v-model="attributes.HumiditySensor"
+              @input="gotInput('HumiditySensor', $event)"
+            >HumiditySensor</b-checkbox>
           </div>
         </div>
       </div>

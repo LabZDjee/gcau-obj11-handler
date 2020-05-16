@@ -2,7 +2,9 @@
   "name": "gcau-obj11-handler",
   "version": "0.1.0",
   "description": "agc management of entities specific to object schema 11",
-  "author": "G. Gauthier",
+  "author": {
+    "name": "Gérard Gauthier"
+  },
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
@@ -19,6 +21,7 @@
     "@fortawesome/fontawesome-svg-core": "^1.2.28",
     "@fortawesome/free-solid-svg-icons": "^5.13.0",
     "@fortawesome/vue-fontawesome": "^0.1.9",
+    "@labzdjee/agc-util": "^1.0.0",
     "buefy": "^0.8.17",
     "core-js": "^3.6.4",
     "vue": "^2.6.11",

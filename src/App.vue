@@ -35,7 +35,7 @@
 </template>
 
 <script>
-import { ipcRenderer } from "electron";
+// import { ipcRenderer } from "electron";
 
 import Anix from "./components/objects/Anix";
 import Commun2 from "./components/objects/Commun2";
@@ -91,7 +91,6 @@ export default {
   mounted() {
     const rect = this.$refs.objectSelector.getBoundingClientRect();
     this.areaOfObjectsTop = `${rect.height}px`;
-    ipcRenderer.send("set-title", "gCAU object 11 agc manager");
   },
 };
 </script>

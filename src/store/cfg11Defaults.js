@@ -43,7 +43,7 @@ const evtDef = {
   RelayLatch: "0",
   Shutdown: "0",
   CommonAlarm: "0",
-  RelayNb: "0",
+  RelayNumber: "0",
   NumberOfRelays: "1",
   LedNumber: "0",
   Delay: "5",
@@ -53,7 +53,7 @@ const evtDef = {
 const systexDef = {
   RelayRevPol: "0000000000000000",
   ParallelControl: "00",
-  Irigb: "0",
+  IrigB: "0",
   Diox1InputPeriod: "N",
   Diox2InputPeriod: "N",
   DioxPwm: "00",

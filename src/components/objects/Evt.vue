@@ -112,7 +112,7 @@ export default {
       "AM: automatic/manual mode",
     ],
     assertionAttributes: () => ["LCDLatch", "RelayLatch", "Shutdown", "CommonAlarm"],
-    integerAttributes: () => ["RelayNb", "NumberOfRelays", "LedNumber", "Delay", "Value"],
+    integerAttributes: () => ["RelayNumber", "NumberOfRelays", "LedNumber", "Delay", "Value"],
     integerRanges: () => [
       { min: 0, max: 64 },
       { min: 1, max: 4 },

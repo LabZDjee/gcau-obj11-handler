@@ -6,13 +6,27 @@ import {
   /* installVueDevtools */
 } from "vue-cli-plugin-electron-builder/lib";
 
-import { openFile } from "./process";
+import { openFile, displayFileProperties } from "./process";
 
-const isDevelopment = process.env.NODE_ENV !== "production";
+const env = process.env;
+
+const isDevelopment = env.NODE_ENV !== "production";
+
+const defaultTitle = "gCAU @ObjectVrs 11 - AGC handler";
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
-let win;
+let win = null;
+
+export function updateTitle(addendum) {
+  if (win !== null) {
+    if (typeof addendum !== "string") {
+      win.setTitle(defaultTitle);
+    } else {
+      win.setTitle(`${defaultTitle} - ${addendum}`);
+    }
+  }
+}
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([{ scheme: "app", privileges: { secure: true, standard: true } }]);
@@ -28,14 +42,10 @@ function createWindow() {
     show: false,
   });
 
-  ipcMain.on("set-title", function(e, t) {
-    win.setTitle(t);
-  });
-
-  if (process.env.WEBPACK_DEV_SERVER_URL) {
+  if (env.WEBPACK_DEV_SERVER_URL) {
     // Load the url of the dev server if in development mode
-    win.loadURL(process.env.WEBPACK_DEV_SERVER_URL);
-    // if (!process.env.IS_TEST) {
+    win.loadURL(env.WEBPACK_DEV_SERVER_URL);
+    // if (!env.IS_TEST) {
     //   win.webContents.openDevTools();
     // }
   } else {
@@ -45,6 +55,7 @@ function createWindow() {
   }
 
   win.once("ready-to-show", () => {
+    win.setTitle(defaultTitle);
     win.show();
   });
 
@@ -62,11 +73,10 @@ app.on("window-all-closed", () => {
   }
 });
 
-const env = process.env;
 const aboutStr = `${env.npm_package_name} v${env.npm_package_version}
 Description: ${env.npm_package_description}
 ______________
-Author: Gérard Gauthier
+Author: ${env.npm_package_author_name}
 Main resources:
  Electron: ${env.npm_package_devDependencies_electron.substring(1)}
  Vue: ${env.npm_package_dependencies_vue.substring(1)}
@@ -82,6 +92,12 @@ const template = [
         label: "Load AGC...",
         click() {
           openFile();
+        },
+      },
+      {
+        label: "AGC Properties...",
+        click() {
+          displayFileProperties();
         },
       },
     ],
@@ -115,7 +131,7 @@ const template = [
   },
 ];
 
-if (process.env.NODE_ENV !== "production") {
+if (env.NODE_ENV !== "production") {
   template.push({
     label: "Developer Tools",
     submenu: [
@@ -149,7 +165,7 @@ app.on("activate", () => {
 app.on("ready", async () => {
   Menu.setApplicationMenu(applicationMenu);
 
-  if (isDevelopment && !process.env.IS_TEST) {
+  if (isDevelopment && !env.IS_TEST) {
     // Install Vue Devtools
     // Devtools extensions are broken in Electron 6.0.0 and greater
     // See https://github.com/nklayman/vue-cli-plugin-electron-builder/issues/378 for more info
