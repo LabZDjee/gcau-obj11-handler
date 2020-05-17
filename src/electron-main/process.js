@@ -1,4 +1,5 @@
 /* jshint esversion: 9 */
+/* jshint -W014 */
 
 import path from "path";
 import fs from "fs";
@@ -6,7 +7,7 @@ import { app, dialog } from "electron";
 
 import obj11Defaults from "../store/cfg11Defaults";
 import { analyzeAgcFile, findInAgcFileStruct } from "@labzdjee/agc-util";
-import { updateTitle } from "./background";
+import { updateTitle, win } from "./background";
 
 let currentPath = app.getPath("documents");
 
@@ -58,6 +59,89 @@ const insertionPoints = [
   { object: "EQCTRL", attribute: "OnCommonRelay" },
   { object: "SYSTEM", attribute: "InRevPol" },
 ];
+
+function injectObj11IntoAgcStructAndLines(agcStruct, lines) {
+  const alterationPoints = insertionPoints.reduce(function(result, findHint) {
+    result[findHint.object] = findInAgcFileStruct(findHint, agcStruct);
+    if (result[findHint.object] === null) {
+      throw `unexpected failure in injectObj11IntoAgcStructAndLines:findInAgcFileStruct for ${findHint}`;
+    }
+    return result;
+  }, {});
+  function injectArrayAtLine(array, line) {
+    lines.splice(line, 0, ...array);
+    for (let objectName in alterationPoints) {
+      const attribute = alterationPoints[objectName];
+      if (attribute.line > line) {
+        attribute.line += array.length;
+      }
+    }
+  }
+  if (typeof currentFile.classVersion !== "number") {
+    throw "injectObj11IntoAgcStruct called when currentFile version was not defined";
+  }
+  if (currentFile.version >= 11) {
+    return;
+  }
+  let classVrsLine = findInAgcFileStruct({ metaTag: "ClassVrs" }, agcStruct)[0].line;
+  lines[classVrsLine - 1] = `$ClassVrs = "11"`;
+  classVrsLine = findInAgcFileStruct({ section: "GCAUCalibrationData", metaTag: "ClassVrs" }, agcStruct)[0].line;
+  lines[classVrsLine - 1] = `$ClassVrs = "11"`;
+  let arrayToInject;
+  let alter;
+  // SYSVAR and ANIX
+  alter = alterationPoints.SYSVAR;
+  lines[alter.line - 1] = `SYSVAR.${alter.name} = "${obj11Defaults.SYSVAR.EventEnableMsb}${alter.value}"`;
+  arrayToInject = [];
+  for (let instanceNb = 1; instanceNb <= 4; instanceNb++) {
+    arrayToInject.push("");
+    const obj = `ANIX_${instanceNb}`;
+    for (let attr in obj11Defaults[obj]) {
+      arrayToInject.push(`${obj}.${attr} = "${obj11Defaults[obj][attr]}"`);
+    }
+  }
+  injectArrayAtLine(arrayToInject, alter.line);
+  // SYSTEX
+  arrayToInject = [""];
+  alter = alterationPoints.SYSTEM;
+  for (let attr in obj11Defaults.SYSTEX) {
+    arrayToInject.push(`SYSTEX.${attr} = "${obj11Defaults.SYSTEX[attr]}"`);
+  }
+  injectArrayAtLine(arrayToInject, alter.line);
+  // EQCTRL
+  arrayToInject = [];
+  alter = alterationPoints.EQCTRL;
+  for (let attr in obj11Defaults.EQCTRL) {
+    arrayToInject.push(`EQCTRL.${attr} = "${obj11Defaults.EQCTRL[attr]}"`);
+  }
+  injectArrayAtLine(arrayToInject, alter.line);
+  // EVT_49
+  arrayToInject = [];
+  alter = alterationPoints.EVT_48;
+  for (let instanceNb = 49; instanceNb <= 56; instanceNb++) {
+    arrayToInject.push("");
+    const obj = `EVT_${instanceNb}`;
+    for (let attr in obj11Defaults[obj]) {
+      arrayToInject.push(`${obj}.${attr} = "${obj11Defaults[obj][attr]}"`);
+    }
+  }
+  injectArrayAtLine(arrayToInject, alter.line);
+  // EQ_17
+  arrayToInject = [];
+  alter = alterationPoints.EQ_16;
+  for (let instanceNb = 17; instanceNb <= 24; instanceNb++) {
+    arrayToInject.push("");
+    const obj = `EQ_${instanceNb}`;
+    for (let attr in obj11Defaults[obj]) {
+      arrayToInject.push(`${obj}.${attr} = "${obj11Defaults[obj][attr]}"`);
+    }
+  }
+  injectArrayAtLine(arrayToInject, alter.line);
+  // COMMUN2
+  alter = alterationPoints.COMMUN2;
+  injectArrayAtLine([`COMMUN2.AltAsciiModbusParity = "${obj11Defaults.COMMUN2.AltAsciiModbusParity}"`], alter.line);
+  analyzeAgcFile(lines);
+}
 
 // return class version or throws in case of failure in analysis
 function analyzeConsitencyOfStruct(agcStruct) {
@@ -115,14 +199,16 @@ export function displayFileProperties() {
   dialog.showMessageBox({ type: "info", buttons: ["OK"], message, title: "AGC File Properties" });
 }
 
+const /* file dialog */ filters = [
+    { name: "AGC", extensions: ["agc"] },
+    { name: "Text", extensions: ["txt", "text"] },
+    { name: "All Files", extensions: ["*"] },
+  ];
+
 export function openFile() {
   const files = dialog.showOpenDialogSync({
     properties: ["openFile"],
-    filters: [
-      { name: "AGC", extensions: ["agc"] },
-      { name: "Text", extensions: ["txt", "text"] },
-      { name: "All Files", extensions: ["*"] },
-    ],
+    filters,
     defaultPath: currentPath,
   });
   if (files !== undefined) {
@@ -139,6 +225,7 @@ export function openFile() {
       currentFile.lines = lines;
       currentFile.struct = struct;
       currentFile.classVersion = classVersion;
+      injectObj11IntoAgcStructAndLines(struct, lines);
       updateTitle(path.basename(fileName));
     } catch (e) {
       let message;
@@ -147,7 +234,29 @@ export function openFile() {
       } else {
         message = `Fatal exception: ${e}`;
       }
-      dialog.showMessageBoxSync({ type: "error", buttons: ["OK"], message, title: "Failure" });
+      dialog.showMessageBoxSync(win, { type: "error", buttons: ["OK"], message, title: "Failure" });
+    }
+  }
+}
+
+export function save() {
+  console.log("file saved (not implemented as of yet)");
+}
+
+export function saveAs() {
+  // Checks here, please!!!
+  const file = dialog.showSaveDialogSync(win, {
+    title: "Save AGC as... Pick or type a file name",
+    filters,
+    dontAddToRecent: true,
+  });
+  if (typeof file === "string") {
+    try {
+      const data = currentFile.lines.join("\r\n");
+      fs.writeFileSync(file, data);
+    } catch (e) {
+      const message = e.toString();
+      dialog.showMessageBoxSync(win, { type: "error", buttons: ["OK"], message, title: "Failure" });
     }
   }
 }

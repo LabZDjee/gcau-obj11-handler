@@ -6,7 +6,7 @@ import {
   /* installVueDevtools */
 } from "vue-cli-plugin-electron-builder/lib";
 
-import { openFile, displayFileProperties } from "./process";
+import { openFile, displayFileProperties, save, saveAs } from "./process";
 
 const env = process.env;
 
@@ -16,7 +16,7 @@ const defaultTitle = "gCAU @ObjectVrs 11 - AGC handler";
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
-let win = null;
+export let win = null;
 
 export function updateTitle(addendum) {
   if (win !== null) {
@@ -82,6 +82,7 @@ Main resources:
  Vue: ${env.npm_package_dependencies_vue.substring(1)}
  Vuex: ${env.npm_package_dependencies_vuex.substring(1)}
  Buefy: ${env.npm_package_dependencies_buefy.substring(1)}
+ agc-util: ${env.npm_package_dependencies__labzdjee_agc_util.substring(1)}
 `;
 
 const template = [
@@ -98,6 +99,19 @@ const template = [
         label: "AGC Properties...",
         click() {
           displayFileProperties();
+        },
+      },
+      {
+        label: "Save AGC",
+        accelerator: "CommandOrControl+S",
+        click() {
+          save();
+        },
+      },
+      {
+        label: "Save AGC as...",
+        click() {
+          saveAs();
         },
       },
     ],
