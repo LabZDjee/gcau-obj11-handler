@@ -50,6 +50,10 @@ const evtDef = {
   Value: "0",
 };
 
+const registryDef = {
+  ProjectReference: "",
+};
+
 const systexDef = {
   RelayRevPol: "0000000000000000",
   ParallelControl: "00",
@@ -154,6 +158,9 @@ export default {
     ...evtDef,
     Text: "EQUATION 24",
     LocalText: "EQUATION 24",
+  },
+  REGISTRY: {
+    ...registryDef,
   },
   SYSTEX: {
     ...systexDef,

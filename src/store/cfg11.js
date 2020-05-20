@@ -1,6 +1,7 @@
 /* jshint esversion: 9 */
 
 import objectDefaults from "./cfg11Defaults";
+import { notifyOfNewValues } from "../main";
 
 export default {
   mutations: {
@@ -11,10 +12,10 @@ export default {
           state[objectName][k] = values[k];
         }
       }
+      notifyOfNewValues([{ objectName, objectValue: values }]);
     },
     setDefault(state, objectName) {
       let objects = [];
-      console.log(objectName);
       if (objectName instanceof RegExp) {
         for (let curObjectName in state) {
           if (objectName.test(curObjectName)) {
@@ -24,11 +25,22 @@ export default {
       } else {
         objects.push(objectName);
       }
-      objects.forEach((object) => {
-        for (let attr in state[object]) {
-          state[object][attr] = objectDefaults[object][attr];
+      const notifyArray = [];
+      objects.forEach((objectName) => {
+        notifyArray.push({ objectName, objectValue: objectDefaults[objectName] });
+        for (let attr in state[objectName]) {
+          state[objectName][attr] = objectDefaults[objectName][attr];
         }
       });
+      notifyOfNewValues(notifyArray);
+    },
+    storeFullConfig(state, objects) {
+      for (let objectName in objects) {
+        for (let attributeName in objects[objectName]) {
+          state[objectName][attributeName] = objects[objectName][attributeName];
+          console.log(objectName, attributeName, objects[objectName][attributeName]);
+        }
+      }
     },
   },
   getters: {
@@ -46,6 +58,9 @@ export default {
     },
     getEvt: (state) => (instanceNum) => {
       return state[`EVT_${instanceNum}`];
+    },
+    getRegistry: (state) => {
+      return state.REGISTRY;
     },
     getSystex: (state) => {
       return state.SYSTEX;

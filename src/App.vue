@@ -5,12 +5,15 @@
       <div class="panel">
         <div class="panel-block">
           <div class="columns is-multiline">
-            <div class="column"><b-checkbox v-model="anixDisplayed">ANIX</b-checkbox></div>
-            <div class="column"><b-checkbox v-model="commun2Displayed">COMMUN2</b-checkbox></div>
-            <div class="column"><b-checkbox v-model="equctrlDisplayed">EQCTRL</b-checkbox></div>
-            <div class="column"><b-checkbox v-model="eqEvtDisplayed">EQ/EVT</b-checkbox></div>
-            <div class="column"><b-checkbox v-model="systexDisplayed">SYSTEX</b-checkbox></div>
-            <div class="column"><b-checkbox v-model="sysvarDisplayed">SYSVAR</b-checkbox></div>
+            <div class="column"><b-checkbox size="is-default" v-model="anixDisplayed">ANIX</b-checkbox></div>
+            <div class="column"><b-checkbox size="is-default" v-model="commun2Displayed">COMMUN2</b-checkbox></div>
+            <div class="column"><b-checkbox size="is-default" v-model="equctrlDisplayed">EQCTRL</b-checkbox></div>
+            <div class="column"><b-checkbox size="is-default" v-model="eqEvtDisplayed">EQ/EVT</b-checkbox></div>
+            <div class="column"><b-checkbox size="is-default" v-model="registryDisplayed">REGISTRY</b-checkbox></div>
+            <div class="column"><b-checkbox size="is-default" v-model="sysvarDisplayed">SYSVAR</b-checkbox></div>
+            <div class="column">
+              <b-checkbox size="is-default" electron:erve v-model="systexDisplayed">SYSTEX</b-checkbox>
+            </div>
             <div class="column is-2">
               <b-button :expanded="true" @click="setNoDisplay">none</b-button>
             </div>
@@ -28,6 +31,7 @@
       <div v-show="eqEvtDisplayed" v-for="i in 8" :key="`eq-evt-${i}`">
         <eq :instance="(i + 16).toString(10)" /><evt :instance="(i + 48).toString(10)" />
       </div>
+      <registry v-show="registryDisplayed"></registry>
       <systex v-show="systexDisplayed"></systex>
       <sysvar v-show="sysvarDisplayed"></sysvar>
     </div>
@@ -35,13 +39,12 @@
 </template>
 
 <script>
-// import { ipcRenderer } from "electron";
-
 import Anix from "./components/objects/Anix";
 import Commun2 from "./components/objects/Commun2";
 import Eq from "./components/objects/Eq";
 import Eqctrl from "./components/objects/Eqctrl";
 import Evt from "./components/objects/Evt";
+import Registry from "./components/objects/Registry";
 import Systex from "./components/objects/Systex";
 import Sysvar from "./components/objects/Sysvar";
 
@@ -53,6 +56,7 @@ export default {
       commun2Displayed: true,
       equctrlDisplayed: true,
       eqEvtDisplayed: true,
+      registryDisplayed: true,
       systexDisplayed: true,
       sysvarDisplayed: true,
       areaOfObjectsTop: "150px",
@@ -64,6 +68,7 @@ export default {
     Eq,
     Eqctrl,
     Evt,
+    Registry,
     Systex,
     Sysvar,
   },
@@ -76,6 +81,7 @@ export default {
       this.commun2Displayed = false;
       this.equctrlDisplayed = false;
       this.eqEvtDisplayed = false;
+      this.registryDisplayed = false;
       this.systexDisplayed = false;
       this.sysvarDisplayed = false;
     },
@@ -84,6 +90,7 @@ export default {
       this.commun2Displayed = true;
       this.equctrlDisplayed = true;
       this.eqEvtDisplayed = true;
+      this.registryDisplayed = true;
       this.systexDisplayed = true;
       this.sysvarDisplayed = true;
     },
@@ -191,5 +198,7 @@ $tablet: 400px;
   position: absolute;
   top: 120px;
   z-index: -1;
+  min-width: 100%;
+  background-color: snow;
 }
 </style>

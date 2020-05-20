@@ -56,3 +56,7 @@ ipcRenderer.on("store-mutation", function(e, what, value) {
   }
   v.$store.commit(what, value);
 });
+
+export function notifyOfNewValues(arrayOfObjects) {
+  ipcRenderer.send("notify-of-new-values", arrayOfObjects);
+}

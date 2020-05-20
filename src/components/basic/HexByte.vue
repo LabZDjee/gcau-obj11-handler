@@ -2,15 +2,15 @@
   <div class="panel-block">
     <div class="columns is-multiline">
       <div v-if="title !== ''" class="column">
-        {{ title }}<span v-if="displayResult"> = 0X{{ numericValueInHex }}</span>
+        {{ title }}
+        <span v-if="displayResult">= 0x{{ numericValueInHex.toLowerCase() }}</span>
       </div>
       <div v-else class="column">
-        {{ attribute }}<span v-if="displayResult"> = 0X{{ numericValueInHex }}</span>
+        {{ attribute }}
+        <span v-if="displayResult">= 0x{{ numericValueInHex.toLowerCase() }}</span>
       </div>
       <div v-for="(def, k) in bitfieldDef" :key="k" class="column">
-        <b-checkbox v-model="bitfieldArray[k]" @input="gotInput(k, $event)">
-          {{ def }}
-        </b-checkbox>
+        <b-checkbox v-model="bitfieldArray[k]" @input="gotInput(k, $event)">{{ def }}</b-checkbox>
       </div>
     </div>
   </div>

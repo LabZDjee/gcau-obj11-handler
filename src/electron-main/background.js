@@ -1,12 +1,12 @@
 /* jshint esversion: 8 */
 
-import { app, protocol, BrowserWindow, Menu, ipcMain, dialog } from "electron";
+import { app, protocol, BrowserWindow, Menu, dialog } from "electron";
 import {
   createProtocol,
   /* installVueDevtools */
 } from "vue-cli-plugin-electron-builder/lib";
 
-import { openFile, displayFileProperties, save, saveAs } from "./process";
+import { openFile, displayFileProperties, save, saveAs, testIfCannotQuit } from "./process";
 
 const env = process.env;
 
@@ -34,7 +34,7 @@ protocol.registerSchemesAsPrivileged([{ scheme: "app", privileges: { secure: tru
 function createWindow() {
   // Create the browser window
   win = new BrowserWindow({
-    width: 600,
+    width: 740,
     height: 600,
     webPreferences: {
       nodeIntegration: true,
@@ -96,14 +96,18 @@ const template = [
         },
       },
       {
+        id: "agcProperties",
+        enabled: false,
         label: "AGC Properties...",
         click() {
           displayFileProperties();
         },
       },
       {
+        id: "saveAgc",
         label: "Save AGC",
         accelerator: "CommandOrControl+S",
+        enabled: false,
         click() {
           save();
         },
@@ -113,6 +117,11 @@ const template = [
         click() {
           saveAs();
         },
+      },
+      {
+        label: "Quit",
+        accelerator: "CommandOrControl+Q",
+        role: "quit",
       },
     ],
   },
@@ -163,7 +172,13 @@ if (env.NODE_ENV !== "production") {
   });
 }
 
-const applicationMenu = Menu.buildFromTemplate(template);
+export const applicationMenu = Menu.buildFromTemplate(template);
+
+app.on("before-quit", (event) => {
+  if (testIfCannotQuit()) {
+    event.preventDefault();
+  }
+});
 
 app.on("activate", () => {
   // On macOS it's common to re-create a window in the app when the

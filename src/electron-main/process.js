@@ -3,16 +3,18 @@
 
 import path from "path";
 import fs from "fs";
-import { app, dialog } from "electron";
+import { app, dialog, ipcMain } from "electron";
 
 import obj11Defaults from "../store/cfg11Defaults";
 import { analyzeAgcFile, findInAgcFileStruct } from "@labzdjee/agc-util";
-import { updateTitle, win } from "./background";
+import { applicationMenu, updateTitle, win } from "./background";
 
 let currentPath = app.getPath("documents");
 
 let persist = null;
 const persistFilename = path.resolve(app.getPath("userData"), "persist.json");
+
+// nanagement of persistance
 
 try {
   if (fs.existsSync(persistFilename)) {
@@ -25,6 +27,7 @@ try {
   console.log(e);
   persist = null;
 }
+
 function writePersist(objectToAddOrUpdate) {
   if (objectToAddOrUpdate !== undefined) {
     if (persist === null) {
@@ -38,28 +41,75 @@ function writePersist(objectToAddOrUpdate) {
   fs.writeFileSync(persistFilename, JSON.stringify(persist));
 }
 
+// static data
 const currentFile = {
   name: null,
   lines: null,
   struct: null,
   edited: false,
-  // one of:
-  //  no-file
-  //  at-level-11
-  //  upgraded-to-level-11
-  type: "no-file",
   classVersion: null,
 };
 
+// interaction with Vue store
+ipcMain.on("notify-of-new-values", function(e, arrayOfObjects) {
+  if (currentFile.name === null) return;
+  arrayOfObjects.forEach((object) => {
+    for (let attributeName in object.objectValue) {
+      if (object.objectName === "SYSVAR" && attributeName === "EventEnableMsb") {
+        attributeName = "EventEnable";
+      }
+      const structObject = findInAgcFileStruct(
+        { object: object.objectName, attribute: attributeName },
+        currentFile.struct
+      );
+      if (structObject !== null) {
+        if (object.objectName === "SYSVAR" && attributeName === "EventEnable") {
+          currentFile.lines[structObject.line - 1] = `${object.objectName}.${
+            structObject.readOnly ? "!" : ""
+          }${attributeName} = "${object.objectValue.EventEnableMsb}${structObject.value.substring(2)}"`;
+        } else {
+          currentFile.lines[structObject.line - 1] = `${object.objectName}.${
+            structObject.readOnly ? "!" : ""
+          }${attributeName} = "${object.objectValue[attributeName]}"`;
+        }
+      }
+    }
+  });
+});
+
+function setStoreContents() {
+  if (currentFile.struct === null) {
+    return;
+  }
+  const objects = {};
+  for (let object in obj11Defaults) {
+    objects[object] = {};
+    if (object === "SYSVAR") {
+      objects[object].EventEnableMsb = findInAgcFileStruct(
+        { object, attribute: "EventEnable" },
+        currentFile.struct
+      ).value.substring(0, 2);
+    } else {
+      for (let attribute in obj11Defaults[object]) {
+        objects[object][attribute] = findInAgcFileStruct({ object, attribute }, currentFile.struct).value;
+      }
+    }
+  }
+  win.webContents.send("store-mutation", "storeFullConfig", objects);
+}
+
+// object/attribute of locations where to insert/update objects at level 11 (when missing)
 const insertionPoints = [
   { object: "SYSVAR", attribute: "EventEnable" },
   { object: "COMMUN2", attribute: "ModemType" },
   { object: "EVT_48", attribute: "LocalText" },
   { object: "EQ_16", attribute: "ModbusMultiplier" },
   { object: "EQCTRL", attribute: "OnCommonRelay" },
+  { object: "REGISTRY", attribute: "SpecialTemperatureProbe" },
   { object: "SYSTEM", attribute: "InRevPol" },
 ];
 
+// helpers for load file dialog
 function injectObj11IntoAgcStructAndLines(agcStruct, lines) {
   const alterationPoints = insertionPoints.reduce(function(result, findHint) {
     result[findHint.object] = findInAgcFileStruct(findHint, agcStruct);
@@ -80,8 +130,8 @@ function injectObj11IntoAgcStructAndLines(agcStruct, lines) {
   if (typeof currentFile.classVersion !== "number") {
     throw "injectObj11IntoAgcStruct called when currentFile version was not defined";
   }
-  if (currentFile.version >= 11) {
-    return;
+  if (currentFile.classVersion >= 11) {
+    return null;
   }
   let classVrsLine = findInAgcFileStruct({ metaTag: "ClassVrs" }, agcStruct)[0].line;
   lines[classVrsLine - 1] = `$ClassVrs = "11"`;
@@ -140,7 +190,11 @@ function injectObj11IntoAgcStructAndLines(agcStruct, lines) {
   // COMMUN2
   alter = alterationPoints.COMMUN2;
   injectArrayAtLine([`COMMUN2.AltAsciiModbusParity = "${obj11Defaults.COMMUN2.AltAsciiModbusParity}"`], alter.line);
-  analyzeAgcFile(lines);
+  // REGISTRY
+  alter = alterationPoints.REGISTRY;
+  injectArrayAtLine([`REGISTRY.ProjectReference = "${obj11Defaults.REGISTRY.ProjectReference}"`], alter.line);
+
+  return analyzeAgcFile(lines);
 }
 
 // return class version or throws in case of failure in analysis
@@ -172,7 +226,7 @@ function analyzeConsitencyOfStruct(agcStruct) {
     } else {
       for (let attribute in obj11Defaults[object]) {
         if (findInAgcFileStruct({ object, attribute }, agcStruct) === null) {
-          if (nbMatches) {
+          if (classVersion >= 11) {
             throw `AGC file is inconsistent (while checking ${object}.${attribute}): fix it first`;
           }
         } else {
@@ -195,7 +249,7 @@ export function displayFileProperties() {
   const message =
     currentFile.name === null
       ? "No file currently loaded!"
-      : `File name: ${currentFile.name}\nInitial class version: ${currentFile.classVersion}\nEdited value not saved: ${edited}`;
+      : `File name: ${currentFile.name}\nInitial class version: ${currentFile.classVersion}\nEdited value(s) not saved: ${edited}`;
   dialog.showMessageBox({ type: "info", buttons: ["OK"], message, title: "AGC File Properties" });
 }
 
@@ -219,14 +273,30 @@ export function openFile() {
       currentPath = dirName;
       writePersist({ defaultDir: currentPath });
       const lines = rawContents.toString().split(/\r?\n/);
-      const struct = analyzeAgcFile(lines);
-      const classVersion = analyzeConsitencyOfStruct(struct);
+      let agcStruct = analyzeAgcFile(lines);
+      const classVersion = analyzeConsitencyOfStruct(agcStruct);
       currentFile.name = fileName;
       currentFile.lines = lines;
-      currentFile.struct = struct;
+      currentFile.struct = agcStruct;
       currentFile.classVersion = classVersion;
-      injectObj11IntoAgcStructAndLines(struct, lines);
+      agcStruct = injectObj11IntoAgcStructAndLines(agcStruct, lines);
+      if (agcStruct !== null) {
+        currentFile.struct = agcStruct;
+      } else {
+        agcStruct = currentFile.struct;
+      }
+      const projectRef = findInAgcFileStruct({ object: "REGISTRY", attribute: "ProjectReference" }, agcStruct);
+      if (projectRef.value === "") {
+        const idNum = findInAgcFileStruct({ metaTag: "IDNum" }, agcStruct)[0];
+        if (idNum !== null) {
+          projectRef.value = idNum.value;
+          lines[projectRef.line - 1] = `REGISTRY.ProjectReference = "${idNum.value}"`;
+        }
+      }
+      setStoreContents();
       updateTitle(path.basename(fileName));
+      applicationMenu.getMenuItemById("saveAgc").enabled = true;
+      applicationMenu.getMenuItemById("agcProperties").enabled = true;
     } catch (e) {
       let message;
       if (e.explicit && e.category) {
@@ -240,7 +310,13 @@ export function openFile() {
 }
 
 export function save() {
-  console.log("file saved (not implemented as of yet)");
+  try {
+    const data = currentFile.lines.join("\r\n");
+    fs.writeFileSync(currentFile.name, data);
+  } catch (e) {
+    const message = e.toString();
+    dialog.showMessageBoxSync(win, { type: "error", buttons: ["OK"], message, title: "Failure" });
+  }
 }
 
 export function saveAs() {
@@ -259,4 +335,15 @@ export function saveAs() {
       dialog.showMessageBoxSync(win, { type: "error", buttons: ["OK"], message, title: "Failure" });
     }
   }
+}
+
+export function testIfCannotQuit() {
+  return (
+    dialog.showMessageBoxSync(win, {
+      type: "question",
+      buttons: ["Yes", "No"],
+      message: "Edited data not saved. Quit anyway?",
+      title: "Need confirmation...",
+    }) === 1
+  );
 }

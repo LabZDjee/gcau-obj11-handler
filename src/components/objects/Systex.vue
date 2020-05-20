@@ -16,7 +16,7 @@
       </div>
       <div class="panel-block">
         <div class="columns">
-          <div class="column">RelayRevPol = 0X{{ attributes.RelayRevPol }}</div>
+          <div class="column">RelayRevPol = 0x{{ attributes.RelayRevPol.toLowerCase() }}</div>
         </div>
       </div>
       <hex-byte
