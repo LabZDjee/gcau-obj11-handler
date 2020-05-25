@@ -6,7 +6,15 @@ import {
   /* installVueDevtools */
 } from "vue-cli-plugin-electron-builder/lib";
 
-import { openFile, displayFileProperties, save, saveAs, testIfCannotQuit } from "./process";
+import {
+  openFile,
+  displayFileProperties,
+  save,
+  saveAs,
+  testIfCannotQuit,
+  undoToLastSavedValues,
+  undoToInitialValues,
+} from "./process";
 
 const env = process.env;
 
@@ -57,6 +65,11 @@ function createWindow() {
   win.once("ready-to-show", () => {
     win.setTitle(defaultTitle);
     win.show();
+    setTimeout(async () => {
+      if (openFile() === false) {
+        updateTitle("Caution: no way to store anything!");
+      }
+    }, 500);
   });
 
   win.on("closed", () => {
@@ -78,11 +91,11 @@ Description: ${env.npm_package_description}
 ______________
 Author: ${env.npm_package_author_name}
 Main resources:
- Electron: ${env.npm_package_devDependencies_electron.substring(1)}
- Vue: ${env.npm_package_dependencies_vue.substring(1)}
- Vuex: ${env.npm_package_dependencies_vuex.substring(1)}
- Buefy: ${env.npm_package_dependencies_buefy.substring(1)}
- agc-util: ${env.npm_package_dependencies__labzdjee_agc_util.substring(1)}
+ Electron: ${env.npm_package_devDependencies_electron}
+ Vue: ${env.npm_package_dependencies_vue}
+ Vuex: ${env.npm_package_dependencies_vuex}
+ Buefy: ${env.npm_package_dependencies_buefy}
+ agc-util: ${env.npm_package_dependencies__labzdjee_agc_util}
 `;
 
 const template = [
@@ -113,7 +126,9 @@ const template = [
         },
       },
       {
+        id: "saveAgcAs",
         label: "Save AGC as...",
+        enabled: false,
         click() {
           saveAs();
         },
@@ -142,6 +157,22 @@ const template = [
         label: "Default everything",
         click() {
           win.webContents.send("store-mutation", "setDefault", "/.*/");
+        },
+      },
+      {
+        id: "undoToLastSavedValues",
+        enabled: false,
+        label: "Undo to last saved values",
+        click() {
+          undoToLastSavedValues();
+        },
+      },
+      {
+        id: "undoToInitialValues",
+        enabled: false,
+        label: "Undo to initial values (from last file load)",
+        click() {
+          undoToInitialValues();
         },
       },
     ],

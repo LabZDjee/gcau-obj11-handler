@@ -68,6 +68,16 @@ export default {
     getSingleAttribute: (state) => (object, attribute) => {
       return state[object][attribute];
     },
+    getIsDefault: (state) => {
+      for (let objName in objectDefaults) {
+        for (let attrName in objectDefaults[objName]) {
+          if (state[objName][attrName] !== objectDefaults[objName][attrName]) {
+            return false;
+          }
+        }
+      }
+      return true;
+    },
   },
   state: {},
 };

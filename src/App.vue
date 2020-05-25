@@ -5,12 +5,24 @@
       <div class="panel">
         <div class="panel-block">
           <div class="columns is-multiline">
-            <div class="column"><b-checkbox size="is-default" v-model="anixDisplayed">ANIX</b-checkbox></div>
-            <div class="column"><b-checkbox size="is-default" v-model="commun2Displayed">COMMUN2</b-checkbox></div>
-            <div class="column"><b-checkbox size="is-default" v-model="equctrlDisplayed">EQCTRL</b-checkbox></div>
-            <div class="column"><b-checkbox size="is-default" v-model="eqEvtDisplayed">EQ/EVT</b-checkbox></div>
-            <div class="column"><b-checkbox size="is-default" v-model="registryDisplayed">REGISTRY</b-checkbox></div>
-            <div class="column"><b-checkbox size="is-default" v-model="sysvarDisplayed">SYSVAR</b-checkbox></div>
+            <div class="column">
+              <b-checkbox size="is-default" v-model="anixDisplayed">ANIX</b-checkbox>
+            </div>
+            <div class="column">
+              <b-checkbox size="is-default" v-model="commun2Displayed">COMMUN2</b-checkbox>
+            </div>
+            <div class="column">
+              <b-checkbox size="is-default" v-model="equctrlDisplayed">EQCTRL</b-checkbox>
+            </div>
+            <div class="column">
+              <b-checkbox size="is-default" v-model="eqEvtDisplayed">EQ/EVT</b-checkbox>
+            </div>
+            <div class="column">
+              <b-checkbox size="is-default" v-model="registryDisplayed">REGISTRY</b-checkbox>
+            </div>
+            <div class="column">
+              <b-checkbox size="is-default" v-model="sysvarDisplayed">SYSVAR</b-checkbox>
+            </div>
             <div class="column">
               <b-checkbox size="is-default" electron:erve v-model="systexDisplayed">SYSTEX</b-checkbox>
             </div>
@@ -25,11 +37,14 @@
       </div>
     </div>
     <div :style="{ top: areaOfObjectsTop }" class="area-of-objects">
-      <div v-show="anixDisplayed" v-for="i in 4" :key="`anix-${i}`"><anix :instance="i.toString(10)"></anix></div>
+      <div v-show="anixDisplayed" v-for="i in 4" :key="`anix-${i}`">
+        <anix :instance="i.toString(10)"></anix>
+      </div>
       <commun2 v-show="commun2Displayed"></commun2>
       <eqctrl v-show="equctrlDisplayed"></eqctrl>
       <div v-show="eqEvtDisplayed" v-for="i in 8" :key="`eq-evt-${i}`">
-        <eq :instance="(i + 16).toString(10)" /><evt :instance="(i + 48).toString(10)" />
+        <eq :instance="(i + 16).toString(10)" />
+        <evt :instance="(i + 48).toString(10)" />
       </div>
       <registry v-show="registryDisplayed"></registry>
       <systex v-show="systexDisplayed"></systex>

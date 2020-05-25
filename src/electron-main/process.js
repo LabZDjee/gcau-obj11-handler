@@ -14,7 +14,7 @@ let currentPath = app.getPath("documents");
 let persist = null;
 const persistFilename = path.resolve(app.getPath("userData"), "persist.json");
 
-// nanagement of persistance
+// management of persistance
 
 try {
   if (fs.existsSync(persistFilename)) {
@@ -47,12 +47,17 @@ const currentFile = {
   lines: null,
   struct: null,
   edited: false,
+  initial: true,
   classVersion: null,
+  initialSnap: null,
+  lastSavedSnap: null,
 };
 
 // interaction with Vue store
-ipcMain.on("notify-of-new-values", function(e, arrayOfObjects) {
-  if (currentFile.name === null) return;
+ipcMain.on("notify-of-new-values", async function(e, arrayOfObjects) {
+  if (currentFile.name === null) {
+    return;
+  }
   arrayOfObjects.forEach((object) => {
     for (let attributeName in object.objectValue) {
       if (object.objectName === "SYSVAR" && attributeName === "EventEnableMsb") {
@@ -62,20 +67,35 @@ ipcMain.on("notify-of-new-values", function(e, arrayOfObjects) {
         { object: object.objectName, attribute: attributeName },
         currentFile.struct
       );
-      if (structObject !== null) {
-        if (object.objectName === "SYSVAR" && attributeName === "EventEnable") {
-          currentFile.lines[structObject.line - 1] = `${object.objectName}.${
-            structObject.readOnly ? "!" : ""
-          }${attributeName} = "${object.objectValue.EventEnableMsb}${structObject.value.substring(2)}"`;
-        } else {
-          currentFile.lines[structObject.line - 1] = `${object.objectName}.${
-            structObject.readOnly ? "!" : ""
-          }${attributeName} = "${object.objectValue[attributeName]}"`;
-        }
+      let value;
+      if (object.objectName === "SYSVAR" && attributeName === "EventEnable") {
+        value = `${object.objectValue.EventEnableMsb}${structObject.value.substring(2)}`;
+      } else {
+        value = object.objectValue[attributeName];
       }
+      currentFile.lines[structObject.line - 1] = `${object.objectName}.${
+        structObject.readOnly ? "!" : ""
+      }${attributeName} = "${value}"`;
+      structObject.value = value;
     }
   });
+  const snap = snapCls11Objects();
+  currentFile.edited = compareCls11Snaps(currentFile.lastSavedSnap, snap).length > 0;
+  currentFile.initial = compareCls11Snaps(currentFile.initialSnap, snap).length === 0;
+  applicationMenu.getMenuItemById("undoToLastSavedValues").enabled = currentFile.edited;
+  applicationMenu.getMenuItemById("undoToInitialValues").enabled = !currentFile.initial;
+  updateFlagsAndMenuAndTitle();
 });
+
+export async function undoToLastSavedValues() {
+  applyCls11Snap(currentFile.lastSavedSnap);
+  updateFlagsAndMenuAndTitle();
+}
+
+export async function undoToInitialValues() {
+  applyCls11Snap(currentFile.initialSnap);
+  updateFlagsAndMenuAndTitle();
+}
 
 function setStoreContents() {
   if (currentFile.struct === null) {
@@ -198,7 +218,7 @@ function injectObj11IntoAgcStructAndLines(agcStruct, lines) {
 }
 
 // return class version or throws in case of failure in analysis
-function analyzeConsitencyOfStruct(agcStruct) {
+function analyzeConsistencyOfStruct(agcStruct) {
   let nbMatches = 0;
   let vTags = findInAgcFileStruct({ metaTag: "ClassVrs" }, agcStruct);
   if (vTags === null) {
@@ -244,12 +264,67 @@ function analyzeConsitencyOfStruct(agcStruct) {
   return classVersion;
 }
 
+// snap management (snap is a copy of objects/attributes and their values)
+function snapCls11Objects() {
+  const result = {};
+  for (let object in obj11Defaults) {
+    result[object] = {};
+    for (let attribute in obj11Defaults[object]) {
+      if (object === "SYSVAR" && attribute === "EventEnableMsb") {
+        attribute = "EventEnable";
+      }
+      const structObject = findInAgcFileStruct({ object, attribute }, currentFile.struct);
+      result[object][attribute] = structObject.value;
+    }
+  }
+  return result;
+}
+
+// sync everything (currentFile.lines, currentFile.struct, and Vue store) with parameter 'snap'
+function applyCls11Snap(snap) {
+  for (let object in snap) {
+    for (let attribute in snap[object]) {
+      const structObject = findInAgcFileStruct({ object, attribute }, currentFile.struct);
+      structObject.value = snap[object][attribute];
+      currentFile.lines[structObject.line - 1] = `${object}.${structObject.readOnly ? "!" : ""}${attribute} = "${
+        structObject.value
+      }"`;
+    }
+  }
+  setStoreContents();
+}
+
+// compares Cls11snaps
+// returns an object with the following props:
+//  length: number of differences
+//  objects: an object composed of object names as props
+//           and an array of attribute names which are found different
+function compareCls11Snaps(snap1, snap2) {
+  const differences = { length: 0, objects: {} };
+  for (let objectName in snap1) {
+    for (let attributeName in snap1[objectName]) {
+      if (snap1[objectName][attributeName] !== snap2[objectName][attributeName]) {
+        if (differences[objectName] === undefined) {
+          differences.objects[objectName] = [];
+        }
+        differences.objects[objectName].push(attributeName);
+        differences.length++;
+      }
+    }
+  }
+  return differences;
+}
+
 export function displayFileProperties() {
   const edited = currentFile.edited ? "yes" : "no";
+  const initial = currentFile.initial ? "yes" : "no";
   const message =
     currentFile.name === null
       ? "No file currently loaded!"
-      : `File name: ${currentFile.name}\nInitial class version: ${currentFile.classVersion}\nEdited value(s) not saved: ${edited}`;
+      : `File name: ${currentFile.name}
+Initial class version: ${currentFile.classVersion}
+Edited value(s) not yet saved: ${edited}
+Contents same as initially loaded file contents: ${initial}`;
   dialog.showMessageBox({ type: "info", buttons: ["OK"], message, title: "AGC File Properties" });
 }
 
@@ -260,8 +335,21 @@ const /* file dialog */ filters = [
   ];
 
 export function openFile() {
+  if (currentFile.edited) {
+    if (
+      dialog.showMessageBoxSync(win, {
+        type: "question",
+        buttons: ["Yes", "No"],
+        message: "Edited data not saved. Throw them away?",
+        title: "Need confirmation...",
+      }) === 1
+    ) {
+      return false;
+    }
+  }
   const files = dialog.showOpenDialogSync({
     properties: ["openFile"],
+    title: "Open AGC file...",
     filters,
     defaultPath: currentPath,
   });
@@ -274,7 +362,7 @@ export function openFile() {
       writePersist({ defaultDir: currentPath });
       const lines = rawContents.toString().split(/\r?\n/);
       let agcStruct = analyzeAgcFile(lines);
-      const classVersion = analyzeConsitencyOfStruct(agcStruct);
+      const classVersion = analyzeConsistencyOfStruct(agcStruct);
       currentFile.name = fileName;
       currentFile.lines = lines;
       currentFile.struct = agcStruct;
@@ -295,8 +383,15 @@ export function openFile() {
       }
       setStoreContents();
       updateTitle(path.basename(fileName));
-      applicationMenu.getMenuItemById("saveAgc").enabled = true;
       applicationMenu.getMenuItemById("agcProperties").enabled = true;
+      applicationMenu.getMenuItemById("saveAgc").enabled = true;
+      applicationMenu.getMenuItemById("saveAgcAs").enabled = true;
+      applicationMenu.getMenuItemById("undoToLastSavedValues").enabled = false;
+      applicationMenu.getMenuItemById("undoToInitialValues").enabled = false;
+      currentFile.initialSnap = snapCls11Objects();
+      currentFile.lastSavedSnap = snapCls11Objects();
+      currentFile.edited = false;
+      currentFile.initial = true;
     } catch (e) {
       let message;
       if (e.explicit && e.category) {
@@ -305,14 +400,21 @@ export function openFile() {
         message = `Fatal exception: ${e}`;
       }
       dialog.showMessageBoxSync(win, { type: "error", buttons: ["OK"], message, title: "Failure" });
+      return false;
     }
+    return true;
   }
+  return false;
 }
 
 export function save() {
   try {
     const data = currentFile.lines.join("\r\n");
     fs.writeFileSync(currentFile.name, data);
+    currentFile.edited = false;
+    currentFile.lastSavedSnap = snapCls11Objects();
+    updateTitle(path.basename(currentFile.name));
+    applicationMenu.getMenuItemById("undoToLastSavedValues").enabled = false;
   } catch (e) {
     const message = e.toString();
     dialog.showMessageBoxSync(win, { type: "error", buttons: ["OK"], message, title: "Failure" });
@@ -330,6 +432,13 @@ export function saveAs() {
     try {
       const data = currentFile.lines.join("\r\n");
       fs.writeFileSync(file, data);
+      currentFile.name = file;
+      currentFile.edited = false;
+      currentFile.lastSavedSnap = snapCls11Objects();
+      currentFile.classVersion = 11;
+      updateTitle(path.basename(file));
+      applicationMenu.getMenuItemById("undoToLastSavedValues").enabled = false;
+      applicationMenu.getMenuItemById("undoToInitialValues").enabled = true;
     } catch (e) {
       const message = e.toString();
       dialog.showMessageBoxSync(win, { type: "error", buttons: ["OK"], message, title: "Failure" });
@@ -337,7 +446,33 @@ export function saveAs() {
   }
 }
 
+async function updateFlagsAndMenuAndTitle() {
+  const currentSnap = snapCls11Objects();
+  currentFile.edited = compareCls11Snaps(currentFile.lastSavedSnap, currentSnap).length !== 0;
+  currentFile.initial = compareCls11Snaps(currentFile.initialSnap, currentSnap).length === 0;
+  applicationMenu.getMenuItemById("undoToLastSavedValues").enabled = currentFile.edited;
+  applicationMenu.getMenuItemById("undoToInitialValues").enabled = !currentFile.initial;
+  win.webContents.send("query-is-default");
+  const isDefault = await new Promise((resolve) => {
+    ipcMain.once("reply-is-default", (e, result) => {
+      resolve(result);
+    });
+  });
+  let editionMark = "";
+  if (currentFile.edited) {
+    editionMark = isDefault ? " ▼" : " ▲";
+  }
+  updateTitle(`${path.basename(currentFile.name)}${editionMark}`);
+}
+
 export function testIfCannotQuit() {
+  if (currentFile.name !== null) {
+    if (currentFile.edited === false) {
+      return false;
+    }
+  } else {
+    return false;
+  }
   return (
     dialog.showMessageBoxSync(win, {
       type: "question",

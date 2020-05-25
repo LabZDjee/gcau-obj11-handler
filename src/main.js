@@ -57,6 +57,10 @@ ipcRenderer.on("store-mutation", function(e, what, value) {
   v.$store.commit(what, value);
 });
 
+ipcRenderer.on("query-is-default", function(e) {
+  e.sender.send("reply-is-default", v.$store.getters.getIsDefault);
+});
+
 export function notifyOfNewValues(arrayOfObjects) {
   ipcRenderer.send("notify-of-new-values", arrayOfObjects);
 }
