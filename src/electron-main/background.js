@@ -86,16 +86,19 @@ app.on("window-all-closed", () => {
   }
 });
 
-const aboutStr = `${env.npm_package_name} v${env.npm_package_version}
-Description: ${env.npm_package_description}
+const aboutJson = require("./about.json");
+const { packageJson } = aboutJson;
+
+const aboutStr = `${packageJson.name} v${packageJson.version} [b${aboutJson.build}]
+Description: ${packageJson.description}
 ______________
-Author: ${env.npm_package_author_name}
+Author: ${packageJson.author.name}
 Main resources:
- Electron: ${env.npm_package_devDependencies_electron}
- Vue: ${env.npm_package_dependencies_vue}
- Vuex: ${env.npm_package_dependencies_vuex}
- Buefy: ${env.npm_package_dependencies_buefy}
- agc-util: ${env.npm_package_dependencies__labzdjee_agc_util}
+ Electron: ${packageJson.devDependencies.electron}
+ Vue: ${packageJson.dependencies.vue}
+ Vuex: ${packageJson.dependencies.vuex}
+ Buefy: ${packageJson.dependencies.buefy}
+ agc-util: ${packageJson.dependencies["@labzdjee/agc-util"]}
 `;
 
 const template = [

@@ -360,7 +360,7 @@ export function openFile() {
       const rawContents = fs.readFileSync(fileName);
       currentPath = dirName;
       writePersist({ defaultDir: currentPath });
-      const lines = rawContents.toString().split(/\r?\n/);
+      const lines = rawContents.toString("latin1").split(/\r?\n/);
       let agcStruct = analyzeAgcFile(lines);
       const classVersion = analyzeConsistencyOfStruct(agcStruct);
       currentFile.name = fileName;
@@ -410,7 +410,7 @@ export function openFile() {
 export function save() {
   try {
     const data = currentFile.lines.join("\r\n");
-    fs.writeFileSync(currentFile.name, data);
+    fs.writeFileSync(currentFile.name, data, "latin1");
     currentFile.edited = false;
     currentFile.lastSavedSnap = snapCls11Objects();
     updateTitle(path.basename(currentFile.name));
@@ -431,7 +431,7 @@ export function saveAs() {
   if (typeof file === "string") {
     try {
       const data = currentFile.lines.join("\r\n");
-      fs.writeFileSync(file, data);
+      fs.writeFileSync(file, data, "latin1");
       currentFile.name = file;
       currentFile.edited = false;
       currentFile.lastSavedSnap = snapCls11Objects();
