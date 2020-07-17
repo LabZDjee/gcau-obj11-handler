@@ -153,7 +153,7 @@ export default {
       "dual comm",
       "current sharing",
       "battery not common",
-      "display toatl currant",
+      "display total current",
       "max temp compensation",
       "min battery voltage",
     ],

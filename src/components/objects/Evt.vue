@@ -54,9 +54,10 @@
       <div class="panel-block">
         <div class="columns">
           <div class="column is-6">
-            <b-checkbox v-model="extendedValue.virtualEvent" @input="gotInput('virtualEvent', $event)"
-              >Virtual event</b-checkbox
-            >
+            <b-checkbox
+              v-model="extendedValue.virtualEvent"
+              @input="gotInput('virtualEvent', $event)"
+            >Virtual event</b-checkbox>
             <b-select v-model="extendedValue.endDelay" @input="gotInput('endDelay', $event)">
               <option v-for="(p, k) in endDelays" :key="k">{{ p }}</option>
             </b-select>
@@ -69,8 +70,7 @@
               size="is-small"
               v-model="extendedValue[p.id]"
               @input="gotInput(p.id, $event)"
-              >{{ p.msg }}</b-checkbox
-            >
+            >{{ p.msg }}</b-checkbox>
           </div>
         </div>
       </div>
