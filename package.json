@@ -1,6 +1,6 @@
 {
   "name": "gcau-obj11-handler",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "agc management of entities specific to object schema 11",
   "author": {
     "name": "Gérard Gauthier"

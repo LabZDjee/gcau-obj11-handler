@@ -12,6 +12,11 @@
       <div v-for="(def, k) in bitfieldDef" :key="k" class="column">
         <b-checkbox v-model="bitfieldArray[k]" @input="gotInput(k, $event)">{{ def }}</b-checkbox>
       </div>
+      <div v-for="(select, k) in selects" :key="k+5000" class="column">
+         <b-select :value="select.values[((numericValue>>select.offset)&(select.values.length-1))]" @input="gotSelectInput(select, $event)">
+          <option v-for="(p, k2) in select.values" :key="k2+10000">{{ p }}</option>
+        </b-select>
+      </div>
     </div>
   </div>
 </template>
@@ -38,12 +43,19 @@ export default {
     displayResult: { type: Boolean, default: true }, // display current byte value in hex
     title: { type: String, default: "" }, // default: display attribute instead
     offset: {
-      // zero-bsed offset from least significant digit (not byte) in hex string of attribute
+      // zero-based offset from least significant digit (not byte) in hex string of attribute
       type: Number,
       default: 0, // treats first byte
       validator: function(value) {
         return value >= 0 && value < 30;
       },
+    },
+    selects: {
+      type: Array,
+      // made of objects with the following properties:
+      //  offset: zero-based, relative to component prop 'offset
+      //  values: array of strings, as select choices
+      //          important: length of this array should be a power of two!
     },
   },
   computed: {
@@ -87,6 +99,20 @@ export default {
         values: makeObjectFrom(this.attribute, newHexString),
       });
     },
+    gotSelectInput(select, value) {
+      function mask(v) {
+        return v << select.offset;
+      }
+      let byte = this.numericValue;
+      byte &= ~mask(select.values.length-1);
+      byte |= mask(select.values.findIndex(v => v===value));
+      const pos0 = this.hexString.length - this.offset - 2;
+      const newHexString = `${this.hexString.substring(0, pos0)}${toHex(byte, 2)}${this.hexString.substring(pos0 + 2)}`;
+      this.$store.commit("storeValues", {
+        objectName: this.object,
+        values: makeObjectFrom(this.attribute, newHexString),
+      });
+    }
   },
 };
 </script>

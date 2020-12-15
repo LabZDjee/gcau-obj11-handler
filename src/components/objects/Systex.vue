@@ -29,7 +29,7 @@
         :displayResult="false"
         :title="`.RB${board}`"
       ></hex-byte>
-      <hex-byte :object="objectName" attribute="ParallelControl" :bitfieldDef="parallelBitDefs"></hex-byte>
+      <hex-byte :object="objectName" attribute="ParallelControl" :bitfieldDef="parallelBitDefs" :selects="parallelControlSelects"></hex-byte>
       <div class="panel-block">
         <div class="columns">
           <div class="column">
@@ -132,6 +132,7 @@ export default {
 
       return computedAttributes;
     },
+    parallelControlSelects: () => [{offset: 6, values: ["Tolerance 15%", "Tolerance 25%", "Tolerance 35%", "Tolerance 50%"]}],
     inputPeriodAttributes: () => ["Diox1InputPeriod", "Diox2InputPeriod"],
     dioxMaxPeriodattributes: () => ["DioxMaxPeriod1", "DioxMaxPeriod2", "DioxMaxPeriod3"],
     batteryDeadZoneAttributes: () => ["BatteryPosDeadZone", "BatteryNegDeadZone"],
